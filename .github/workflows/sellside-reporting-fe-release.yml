@@ -1,0 +1,47 @@
+name: sellside-reporting-fe catalog release
+run-name: ${{ inputs.helio_execution_id }}
+'on':
+  workflow_dispatch:
+    inputs:
+      helio_execution_id:
+        type: string
+        required: false
+        default: ''
+        description: Helio execution id, echoed exactly as the run name when supplied
+      helio_target_environment:
+        type: string
+        required: false
+        default: ''
+        description: Empty for normal fan-out; exact catalog key for deployment-only recovery
+  push:
+    branches:
+    - master
+permissions:
+  contents: write
+  packages: write
+jobs:
+  artifact:
+    name: Artifact
+    uses: helloangular/helio-client-capacity-20260916/.github/workflows/catalog-build.yml@506db8a2aa635f4b97ad94e4fd957b98bf4f05e1
+    with:
+      helio_execution_id: ${{ inputs.helio_execution_id || '' }}
+      helio_target_environment: ${{ inputs.helio_target_environment || '' }}
+      build_runner: '["self-hosted","bm-sellside-20261028"]'
+      image_repository: localhost:3546/bm-sellside-reporting-fe-20261028
+      build_adapter: cicd/helio-build.sh
+      material_lock: cicd/helio-materials.lock.json
+      deploy_settings_keys: '["AWS_PROFILE","DEPLOY_DC","DEPLOY_ENV","DEPLOY_REGION","GO_PIPELINE_NAME","INVENTORY_GROUP","INVENTORY_SCRIPT","PLAYBOOK"]'
+      secret_names: '["DOCKER_HUB_TOKEN","GH_APP_BUILD_AGENT_CLIENT_ID","GH_APP_BUILD_AGENT_PRIVATE_KEY","NEXUS_DOCKER_PASSWORD","NEXUS_NPM_PASSWORD","NEXUS_PYPI_PASSWORD","NEXUS_YUM_PASSWORD","SONAR_TOKEN"]'
+    secrets: inherit
+  deploy:
+    name: Deploy
+    needs:
+    - artifact
+    uses: helloangular/helio-client-capacity-20260916/.github/workflows/catalog-deploy.yml@506db8a2aa635f4b97ad94e4fd957b98bf4f05e1
+    with:
+      helio_execution_id: ${{ inputs.helio_execution_id || '' }}
+      helio_target_environment: ${{ inputs.helio_target_environment || '' }}
+      deploy_adapter: cicd/helio-deploy.sh
+      deploy_settings_keys: '["AWS_PROFILE","DEPLOY_DC","DEPLOY_ENV","DEPLOY_REGION","GO_PIPELINE_NAME","INVENTORY_GROUP","INVENTORY_SCRIPT","PLAYBOOK"]'
+      secret_names: '[]'
+    secrets: inherit
